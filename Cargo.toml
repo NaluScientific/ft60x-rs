@@ -2,10 +2,10 @@
 name = "ft60x_rs"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-byteorder = "1.4.3"
-rusb = "0.9.1"
 thiserror = "1.0.38"
+libc = "0.2.139"
