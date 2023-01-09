@@ -1,177 +1,220 @@
-pub const FT_DEVICE_DESCRIPTOR_TYPE: u16 = 0x01;
-pub const FT_CONFIGURATION_DESCRIPTOR_TYPE: u16 = 0x02;
-pub const FT_STRING_DESCRIPTOR_TYPE: u16 = 0x03;
-pub const FT_INTERFACE_DESCRIPTOR_TYPE: u16 = 0x04;
+//! Bindings for D3XX.
+#![allow(unused)]
+use std::{ffi::CStr, fmt::Debug};
+
+use libc::*;
+
+// Standard Descriptor Types
+pub(crate) const FT_DEVICE_DESCRIPTOR_TYPE: c_ushort = 0x01;
+pub(crate) const FT_CONFIGURATION_DESCRIPTOR_TYPE: c_ushort = 0x02;
+pub(crate) const FT_STRING_DESCRIPTOR_TYPE: c_ushort = 0x03;
+pub(crate) const FT_INTERFACE_DESCRIPTOR_TYPE: c_ushort = 0x04;
 
 // Reserved pipes
-pub const FT_RESERVED_INTERFACE_INDEX: u16 = 0x0;
-pub const FT_RESERVED_PIPE_INDEX_SESSION: u16 = 0x0;
-pub const FT_RESERVED_PIPE_INDEX_NOTIFICATION: u16 = 0x1;
-pub const FT_RESERVED_PIPE_SESSION: u16 = 0x1;
-pub const FT_RESERVED_PIPE_NOTIFICATION: u16 = 0x81;
+pub(crate) const FT_RESERVED_INTERFACE_INDEX: c_ushort = 0x0;
+pub(crate) const FT_RESERVED_PIPE_INDEX_SESSION: c_ushort = 0x0;
+pub(crate) const FT_RESERVED_PIPE_INDEX_NOTIFICATION: c_ushort = 0x1;
+pub(crate) const FT_RESERVED_PIPE_SESSION: c_ushort = 0x1;
+pub(crate) const FT_RESERVED_PIPE_NOTIFICATION: c_ushort = 0x81;
 
-//
 // Create flags
-//
-pub const FT_OPEN_BY_SERIAL_NUMBER: u32 = 0x00000001;
-pub const FT_OPEN_BY_DESCRIPTION: u32 = 0x00000002;
-pub const FT_OPEN_BY_LOCATION: u32 = 0x00000004;
-pub const FT_OPEN_BY_GUID: u32 = 0x00000008;
-pub const FT_OPEN_BY_INDEX: u32 = 0x00000010;
+pub(crate) const FT_OPEN_BY_SERIAL_NUMBER: c_ulong = 0x00000001;
+pub(crate) const FT_OPEN_BY_DESCRIPTION: c_ulong = 0x00000002;
+pub(crate) const FT_OPEN_BY_LOCATION: c_ulong = 0x00000004;
+pub(crate) const FT_OPEN_BY_GUID: c_ulong = 0x00000008;
+pub(crate) const FT_OPEN_BY_INDEX: c_ulong = 0x00000010;
 
-//
 // ListDevices flags
-//
-pub const FT_LIST_ALL: u32 = 0x20000000;
-pub const FT_LIST_BY_INDEX: u32 = 0x40000000;
-pub const FT_LIST_NUMBER_ONLY: u32 = 0x80000000;
+pub(crate) const FT_LIST_ALL: c_ulong = 0x20000000;
+pub(crate) const FT_LIST_BY_INDEX: c_ulong = 0x40000000;
+pub(crate) const FT_LIST_NUMBER_ONLY: c_ulong = 0x80000000;
 
-//
 // GPIO direction, value
-//
-pub const FT_GPIO_DIRECTION_IN: u8 = 0;
-pub const FT_GPIO_DIRECTION_OUT: u8 = 1;
-pub const FT_GPIO_VALUE_LOW: u8 = 0;
-pub const FT_GPIO_VALUE_HIGH: u8 = 1;
-pub const FT_GPIO_0: u8 = 0;
-pub const FT_GPIO_1: u8 = 1;
+pub(crate) const FT_GPIO_DIRECTION_IN: c_uchar = 0;
+pub(crate) const FT_GPIO_DIRECTION_OUT: c_uchar = 1;
+pub(crate) const FT_GPIO_VALUE_LOW: c_uchar = 0;
+pub(crate) const FT_GPIO_VALUE_HIGH: c_uchar = 1;
+pub(crate) const FT_GPIO_0: c_uchar = 0;
+pub(crate) const FT_GPIO_1: c_uchar = 1;
 
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, Default, Clone)]
+pub(crate) struct FT_DEVICE_DESCRIPTOR {
+    pub(crate) bLength: c_uchar,
+    pub(crate) bDescriptorType: c_uchar,
+    pub(crate) bcdUSB: c_ushort,
+    pub(crate) bDeviceClass: c_uchar,
+    pub(crate) bDeviceSubClass: c_uchar,
+    pub(crate) bDeviceProtocol: c_uchar,
+    pub(crate) bMaxPacketSize0: c_uchar,
+    pub(crate) idVendor: c_ushort,
+    pub(crate) idProduct: c_ushort,
+    pub(crate) bcdDevice: c_ushort,
+    pub(crate) iManufacturer: c_uchar,
+    pub(crate) iProduct: c_uchar,
+    pub(crate) iSerialNumber: c_uchar,
+    pub(crate) bNumConfigurations: c_uchar,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Clone)]
+pub(crate) struct FT_DEVICE_LIST_INFO_NODE {
+    pub(crate) Flags: c_ulong,
+    pub(crate) Type: c_ulong,
+    pub(crate) ID: c_ulong,
+    pub(crate) LocId: c_ulong,
+    pub(crate) SerialNumber: [c_uchar; 16],
+    pub(crate) Description: [c_uchar; 32],
+    pub(crate) ftHandle: FT_HANDLE,
+}
+
+impl Debug for FT_DEVICE_LIST_INFO_NODE {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FT_DEVICE_LIST_INFO_NODE")
+            .field("Flags", &self.Flags)
+            .field("Type", &self.Type)
+            .field("ID", &self.ID)
+            .field("LocId", &self.LocId)
+            .field("SerialNumber", &c_str_to_string(&self.SerialNumber))
+            .field("Description", &c_str_to_string(&self.Description))
+            .field("ftHandle", &self.ftHandle)
+            .finish()
+    }
+}
+
+impl Default for FT_DEVICE_LIST_INFO_NODE {
+    fn default() -> Self {
+        Self {
+            Flags: 0,
+            Type: 0,
+            ID: 0,
+            LocId: 0,
+            SerialNumber: Default::default(),
+            Description: Default::default(),
+            ftHandle: std::ptr::null_mut(),
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
+pub(crate) struct FT_PIPE_INFORMATION {
+    pub(crate) PipeType: c_int,
+    pub(crate) PipeID: c_uchar,
+    pub(crate) MaximumPacketSize: c_ushort,
+    pub(crate) Interval: c_uchar,
+}
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub enum FtStatus {
-    FT_OK = 0,
-    FT_INVALID_HANDLE = 1,
-    FT_DEVICE_NOT_FOUND = 2,
-    FT_DEVICE_NOT_OPENED = 3,
-    FT_IO_ERROR = 4,
-    FT_INSUFFICIENT_RESOURCES = 5,
-    FT_INVALID_PARAMETER = 6,
-    FT_INVALID_BAUD_RATE = 7,
-    FT_DEVICE_NOT_OPENED_FOR_ERASE = 8,
-    FT_DEVICE_NOT_OPENED_FOR_WRITE = 9,
-    FT_FAILED_TO_WRITE_DEVICE = 10,
-    FT_EEPROM_READ_FAILED = 11,
-    FT_EEPROM_WRITE_FAILED = 12,
-    FT_EEPROM_ERASE_FAILED = 13,
-    FT_EEPROM_NOT_PRESENT = 14,
-    FT_EEPROM_NOT_PROGRAMMED = 15,
-    FT_INVALID_ARGS = 16,
-    FT_NOT_SUPPORTED = 17,
+pub(crate) type FT_STATUS = c_ulong;
+#[allow(non_camel_case_types)]
+pub(crate) type FT_HANDLE = *mut c_void;
 
-    FT_NO_MORE_ITEMS = 18,
-    FT_TIMEOUT = 19,
-    FT_OPERATION_ABORTED = 20,
-    FT_RESERVED_PIPE = 21,
-    FT_INVALID_CONTROL_REQUEST_DIRECTION = 22,
-    FT_INVALID_CONTROL_REQUEST_TYPE = 23,
-    FT_IO_PENDING = 24,
-    FT_IO_INCOMPLETE = 25,
-    FT_HANDLE_EOF = 26,
-    FT_BUSY = 27,
-    FT_NO_SYSTEM_RESOURCES = 28,
-    FT_DEVICE_LIST_NOT_READY = 29,
-    FT_DEVICE_NOT_CONNECTED = 30,
-	FT_INCORRECT_DEVICE_PATH = 31,
-
-    FT_OTHER_ERROR = 32,
-}
-
-pub enum FtPipeType {
-    FTPipeTypeControl=0,
-    FTPipeTypeIsochronous,
-    FTPipeTypeBulk,
-    FTPipeTypeInterrupt
-}
-
-#[repr(C)]
-struct CommonDescriptor {
-    bLength: u8,
-    bDescriptorType: u8,
-}
-
-#[allow(non_snake_case)]
-#[repr(C)]
-struct DeviceDescriptor {
-    bLength: u8,
-    bDescriptorType: u8,
-    bcdUSB: u16,
-    bDeviceClass: u8,
-    bDeviceSubClass: u8,
-    bDeviceProtocol: u8,
-    bMaxPacketSize0: u8,
-    idVendor: u16,
-    idProduct: u16,
-    bcdDevice: u16,
-    iManufacturer: u8,
-    iProduct: u8,
-    iSerialNumber: u8,
-    bNumConfigurations: u8,
-}
-
-#[allow(non_snake_case)]
-#[repr(C)]
-struct ConfigurationDescriptor {
-    bLength: u8,
-    bDescriptorType: u8,
-    wTotalLength: u16,
-    bNumInterfaces: u8,
-    bConfigurationValue: u8,
-    iConfiguration: u8,
-    bmAttributes: u8,
-    MaxPower: u8,
-}
-
-#[allow(non_snake_case)]
-#[repr(C)]
-pub struct FT_DEVICE_LIST_INFO_NODE {
-	pub Flags: ULONG,
-	pub Type: ULONG,
-	pub ID: ULONG,
-	pub LocId: DWORD,
-	pub SerialNumber: [u8; 16],
-	pub Description: [u8; 32],
-	pub ftHandle: FT_HANDLE,
-}
-
-
-pub type DWORD = libc::c_ulong;
-pub type PVOID = *mut libc::c_void;
-pub type FT_HANDLE = PVOID;
-pub type PFT_HANDLE = *mut FT_HANDLE;
-pub type UCHAR = u8;
-pub type PUCHAR = *mut u8;
-pub type ULONG = u32;
-pub type PULONG = *mut u32;
-
-#[link(name = "FTD3XX", kind="static")]
+#[link(name = "FTD3XX", kind = "static")]
 extern "C" {
-    pub fn FT_ListDevices(pArg1: PVOID, pArg2: PVOID, flags: DWORD) -> DWORD;
-    pub fn FT_CreateDeviceInfoList(lpdwNumDevs: *mut DWORD) -> DWORD;
-    pub fn FT_GetDeviceInfoList(ptDest: *mut FT_DEVICE_LIST_INFO_NODE, lpdwNumDevs: *mut DWORD) -> DWORD;
+    pub(crate) fn FT_ListDevices(
+        pArg1: *mut c_void,
+        pArg2: *mut c_void,
+        flags: c_ulong,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_CreateDeviceInfoList(lpdwNumDevs: *mut c_ulong) -> FT_STATUS;
+    pub(crate) fn FT_GetDeviceInfoList(
+        ptDest: *mut FT_DEVICE_LIST_INFO_NODE,
+        lpdwNumDevs: *mut c_ulong,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_GetDeviceInfoDetail(
+        dwIndex: c_ulong,
+        lpdwFlags: *mut c_ulong,
+        lpdwType: *mut c_ulong,
+        lpdwID: *mut c_ulong,
+        lpdwLocId: *mut c_ulong,
+        lpSerialNumber: *mut c_void,
+        lpDescription: *mut c_void,
+        pftHandle: *mut FT_HANDLE,
+    ) -> FT_STATUS;
 
-    pub fn FT_Create(pvArg: PVOID, dwFlags: DWORD, pftHandle: PFT_HANDLE) -> DWORD;
-    pub fn FT_Close(handle: FT_HANDLE) -> DWORD;
-    pub fn FT_WritePipeEx(handle: FT_HANDLE, ucPipeId: u8, pucBuffer: *const u8, ulBufferLength: ULONG, pulBytesTransferred: PULONG, pOverlapped: PVOID) -> DWORD;
-    pub fn FT_ReadPipeEx(handle: FT_HANDLE, ucPipeId: u8, pucBuffer: *mut u8, ulBufferLength: ULONG, pulBytesTransferred: PULONG, pOverlapped: PVOID) -> DWORD;
+    pub(crate) fn FT_Create(
+        pvArg: *mut c_void,
+        dwFlags: c_ulong,
+        pftHandle: *mut FT_HANDLE,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_Close(handle: FT_HANDLE) -> FT_STATUS;
+    pub(crate) fn FT_GetDriverVersion(handle: FT_HANDLE, lpdwVersion: *mut c_ulong) -> FT_STATUS;
+    pub(crate) fn FT_WritePipeEx(
+        handle: FT_HANDLE,
+        ucPipeId: u8,
+        pucBuffer: *const c_uchar,
+        ulBufferLength: c_ulong,
+        pulBytesTransferred: *mut c_ulong,
+        pOverlapped: *mut c_void,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_ReadPipeEx(
+        handle: FT_HANDLE,
+        ucPipeId: u8,
+        pucBuffer: *mut c_uchar,
+        ulBufferLength: c_ulong,
+        pulBytesTransferred: *mut c_ulong,
+        pOverlapped: *mut c_void,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_SetPipeTimeout(
+        handle: FT_HANDLE,
+        ucPipeID: c_uchar,
+        ulTimeoutInMs: c_ulong,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_GetPipeTimeout(
+        handle: FT_HANDLE,
+        ucPipeId: c_uchar,
+        pTimeoutInMs: *mut c_ulong,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_GetVIDPID(
+        handle: FT_HANDLE,
+        puwVID: *mut c_ushort,
+        puwPID: *mut c_ushort,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_GetDeviceDescriptor(
+        handle: FT_HANDLE,
+        pDescriptor: *mut FT_DEVICE_DESCRIPTOR,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_SetStreamPipe(
+        handle: FT_HANDLE,
+        bAllWritePipes: c_uchar,
+        bAllReadPipes: c_uchar,
+        ucPipeID: c_uchar,
+        ulStreamSize: c_ulong,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_ClearStreamPipe(
+        handle: FT_HANDLE,
+        bAllWritePipes: c_uchar,
+        bAllReadPipes: c_uchar,
+        ucPipeID: c_uchar,
+    ) -> FT_STATUS;
+    pub(crate) fn FT_AbortPipe(handle: FT_HANDLE, ucPipeID: c_uchar) -> FT_STATUS;
+    pub(crate) fn FT_CycleDevicePort(handle: FT_HANDLE) -> FT_STATUS;
+    pub(crate) fn FT_GetPipeInformation(
+        handle: FT_HANDLE,
+        ucInterfaceIndex: c_uchar,
+        ucPipeIndex: c_uchar,
+        pPipeInformation: *mut FT_PIPE_INFORMATION,
+    ) -> FT_STATUS;
+
+    pub(crate) fn FT_GetLibraryVersion(version: *mut c_ulong) -> FT_STATUS;
 }
 
-pub fn ft_success(status: FtStatus) -> bool {
-    status == FtStatus::FT_OK
+/// Cast a mutable reference to a mutable pointer of a compatible type.
+#[inline]
+pub(crate) fn ptr_mut<T, U>(x: &mut T) -> *mut U {
+    x as *mut _ as *mut U
 }
 
-pub fn ft_failed(status: FtStatus) -> bool {
-    status != FtStatus::FT_OK
-}
-
-pub fn is_read_pipe(pipe_id: u8) -> bool {
-    (pipe_id & 0x80) == 1
-}
-
-pub fn is_write_pipe(pipe_id: u8) -> bool {
-    (pipe_id & 0x80) == 0
-}
-
-pub fn is_bulk_pipe(pipe_type: u8) -> bool {
-    pipe_type == 2
+/// Convert a C string received via FFI to a Rust `String`.
+pub(crate) fn c_str_to_string(s: &[c_uchar]) -> String {
+    unsafe {
+        CStr::from_ptr(s.as_ptr() as *const _)
+            .to_str()
+            .expect("failed to convert cstr to str")
+            .to_string()
+    }
 }

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 #[derive(thiserror::Error, Debug, Clone, Copy)]
 pub enum D3xxError {
@@ -39,6 +39,10 @@ pub enum D3xxError {
 }
 
 impl From<u32> for D3xxError {
+    /// Convert from a raw status value to a `D3xxError`.
+    ///
+    /// # Panics
+    /// Panics if the given value is not a valid status value.
     fn from(id: u32) -> Self {
         match id {
             1 => D3xxError::InvalidHandle,
@@ -80,26 +84,47 @@ impl From<u32> for D3xxError {
 
 impl Display for D3xxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", *self as u32)
+        let name = match *self {
+            Self::InvalidHandle => "InvalidHandle",
+            Self::DeviceNotFound => "DeviceNotFound",
+            Self::DeviceNotOpened => "DeviceNotOpened",
+            Self::IoError => "IoError",
+            Self::InsufficientResources => "InsufficientResources",
+            Self::InvalidParameter => "InvalidParameter",
+            Self::InvalidBaudRate => "InvalidBaudRate",
+            Self::DeviceNotOpenedForErase => "DeviceNotOpenedForErase",
+            Self::DeviceNotOpenedForWrite => "DeviceNotOpenedForWrite",
+            Self::FailedToWriteDevice => "FailedToWriteDevice",
+            Self::EEPROMReadFailed => "EEPROMReadFailed",
+            Self::EEPROMWriteFailed => "EEPROMWriteFailed",
+            Self::EEPROMEraseFailed => "EEPROMEraseFailed",
+            Self::EEPROMNotPresent => "EEPROMNotPresent",
+            Self::EEPROMNotProgrammed => "EEPROMNotProgrammed",
+            Self::InvalidArgs => "InvalidArgs",
+            Self::NotSupported => "NotSupported",
+            Self::NoMoreItems => "NoMoreItems",
+            Self::Timeout => "Timeout",
+            Self::OperationAborted => "OperationAborted",
+            Self::ReservedPipe => "ReservedPipe",
+            Self::InvalidControlRequestDirection => "InvalidControlRequestDirection",
+            Self::InvalidControLRequestType => "InvalidControLRequestType",
+            Self::IoPending => "IoPending",
+            Self::IoIncomplete => "IoIncomplete",
+            Self::HandleEof => "HandleEof",
+            Self::Busy => "Busy",
+            Self::NoSystemResources => "NoSystemResources",
+            Self::DeviceListNotReady => "DeviceListNotReady",
+            Self::DeviceNotConnected => "DeviceNotConnected",
+            Self::IncorrectDevicePath => "IncorrectDevicePath",
+            Self::OtherError => "OtherError",
+        };
+        write!(f, "{} ({})", name, *self as u32)
     }
 }
 
-macro_rules! d3xx_result {
-    // This macro takes an expression of type `expr` and prints
-    // it as a string along with its result.
-    // The `expr` designator is used for expressions.
-    ($status:expr, $ok: expr) => {
-        match $status {
-            0 => Ok($ok),
-            _ => Err(D3xxError::from($status as u32)),
-        }
-    };
-}
-
+/// Returns `Ok(())` if the given status is not an error, otherwise
+/// returns a corresponding `D3xxError`.
 macro_rules! d3xx_error {
-    // This macro takes an expression of type `expr` and prints
-    // it as a string along with its result.
-    // The `expr` designator is used for expressions.
     ($status:expr) => {
         match $status {
             0 => Ok::<(), D3xxError>(()),
@@ -108,5 +133,4 @@ macro_rules! d3xx_error {
     };
 }
 
-pub(crate) use d3xx_result;
 pub(crate) use d3xx_error;
