@@ -4,6 +4,8 @@ use std::{ffi::CStr, fmt::Debug};
 
 use libc::*;
 
+use crate::{error::D3xxError, Result};
+
 // Standard Descriptor Types
 pub(crate) const FT_DEVICE_DESCRIPTOR_TYPE: c_ushort = 0x01;
 pub(crate) const FT_CONFIGURATION_DESCRIPTOR_TYPE: c_ushort = 0x02;
@@ -113,7 +115,8 @@ pub(crate) type FT_STATUS = c_ulong;
 #[allow(non_camel_case_types)]
 pub(crate) type FT_HANDLE = *mut c_void;
 
-#[link(name = "FTD3XX", kind = "static")]
+#[cfg(windows)]
+#[link(name = "FTD3XX_x64", kind="static")]
 extern "C" {
     pub(crate) fn FT_ListDevices(
         pArg1: *mut c_void,
@@ -159,6 +162,7 @@ extern "C" {
         pulBytesTransferred: *mut c_ulong,
         pOverlapped: *mut c_void,
     ) -> FT_STATUS;
+    pub(crate) fn FT_FlushPipe(handle: FT_HANDLE, ucPipeID: c_uchar) -> FT_STATUS;
     pub(crate) fn FT_SetPipeTimeout(
         handle: FT_HANDLE,
         ucPipeID: c_uchar,
@@ -210,11 +214,11 @@ pub(crate) fn ptr_mut<T, U>(x: &mut T) -> *mut U {
 }
 
 /// Convert a C string received via FFI to a Rust `String`.
-pub(crate) fn c_str_to_string(s: &[c_uchar]) -> String {
+pub(crate) fn c_str_to_string(s: &[c_uchar]) -> Result<String> {
     unsafe {
-        CStr::from_ptr(s.as_ptr() as *const _)
+        Ok(CStr::from_ptr(s.as_ptr() as *const _)
             .to_str()
-            .expect("failed to convert cstr to str")
-            .to_string()
+            .or(Err(D3xxError::OtherError))?
+            .to_string())
     }
 }

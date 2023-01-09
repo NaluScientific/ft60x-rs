@@ -20,7 +20,7 @@ pub struct Device {
 impl Device {
     /// Open a device using the given device information.
     pub fn open(info: &DeviceInfo) -> Result<Device> {
-        Self::open_with_serial_number(&info.serial_number())
+        Self::open_with_serial_number(&info.serial_number()?)
     }
 
     /// Open a device using the given serial number.
@@ -90,6 +90,16 @@ impl Device {
         Ok((vid as usize, pid as usize))
     }
 
+    /// Check if the device is connected using a USB2 cable.
+    pub fn is_usb2(&self) -> Result<bool> {
+        Ok(self.device_descriptor()?.is_usb2())
+    }
+
+    /// Check if the device is connected using a USB3 cable.
+    pub fn is_usb3(&self) -> Result<bool> {
+        Ok(self.device_descriptor()?.is_usb3())
+    }
+
     /// Gets the D3XX kernel driver version.
     pub fn driver_version(&self) -> Result<Version> {
         let mut version: c_ulong = 0;
@@ -113,12 +123,16 @@ impl Device {
         Ok(i)
     }
 
+    /// Get information about a pipe.
+    #[allow(unused, unreachable_code)]
     pub fn pipe_info(&self, pipe: Pipe) -> Result<PipeInfo> {
+        todo!("this doesn't work, interface index is wrong");
+
         let mut info = PipeInfo::default();
         unsafe {
             d3xx_error!(FT_GetPipeInformation(
                 self.handle,
-                1,
+                0,
                 pipe as c_uchar,
                 ptr_mut(&mut info)
             ))?;
@@ -178,6 +192,15 @@ impl Device {
             }
         }
         Ok(bytes_transferred as usize)
+    }
+
+    /// Discards any data cached in an IN pipe.
+    /// If `pipe` is an OUT pipe, an `InvalidParameter` error is returned.
+    pub fn flush(&self, pipe: Pipe) -> Result<()> {
+        if !pipe.is_read_pipe() {
+            Err(D3xxError::InvalidParameter)?;
+        }
+        unsafe { d3xx_error!(FT_FlushPipe(self.handle, pipe as c_uchar)) }
     }
 
     /// Configures a timeout for the specified endpoint. Reading and writing will
@@ -326,16 +349,16 @@ impl DeviceInfo {
 
     /// Location identifier.
     pub fn location_identifier(&self) -> u32 {
-        self.inner.LocId
+        self.inner.LocId as _
     }
 
     /// Device description.
-    pub fn description(&self) -> String {
+    pub fn description(&self) -> Result<String> {
         c_str_to_string(&self.inner.Description)
     }
 
     /// Device serial number.
-    pub fn serial_number(&self) -> String {
+    pub fn serial_number(&self) -> Result<String> {
         c_str_to_string(&self.inner.SerialNumber)
     }
 
@@ -365,50 +388,59 @@ pub struct DeviceDescriptor {
 }
 
 impl DeviceDescriptor {
-
     /// The USB specification number the device complies to.
     pub fn usb_specification_number(&self) -> usize {
-        self.inner.bcdUSB as usize
+        self.inner.bcdUSB as _
+    }
+
+    /// Check if the device is connected using a USB2 cable.
+    pub fn is_usb2(&self) -> bool {
+        (self.usb_specification_number() >> 8) & 0xFF == 2
+    }
+
+    /// Check if the device is connected using a USB3 cable.
+    pub fn is_usb3(&self) -> bool {
+        (self.usb_specification_number() >> 8) & 0xFF == 3
     }
 
     /// The device class code assigned by the USB organization.
     pub fn class_code(&self) -> usize {
-        self.inner.bDeviceClass as usize
+        self.inner.bDeviceClass as _
     }
 
     /// The device subclass code assigned by the USB organization.
     pub fn subclass_code(&self) -> usize {
-        self.inner.bDeviceSubClass as usize
+        self.inner.bDeviceSubClass as _
     }
 
     /// The device protocol code assigned by the USB organization.
     pub fn protocol_code(&self) -> usize {
-        self.inner.bDeviceProtocol as usize
+        self.inner.bDeviceProtocol as _
     }
 
     /// The maximum packet size for Zero Endpoint
     pub fn max_packet_size(&self) -> usize {
-        self.inner.bMaxPacketSize0 as usize
+        self.inner.bMaxPacketSize0 as _
     }
 
     /// The device vendor ID assigned by the USB organization.
     pub fn vendor_id(&self) -> usize {
-        self.inner.idVendor as usize
+        self.inner.idVendor as _
     }
 
     /// The device product ID assigned by the manufacturer.
     pub fn product_id(&self) -> usize {
-        self.inner.idProduct as usize
+        self.inner.idProduct as _
     }
 
     /// The device release number.
     pub fn release_number(&self) -> usize {
-        self.inner.bcdDevice as usize
+        self.inner.bcdDevice as _
     }
 
     /// The number of possible configurations for the device.
     pub fn num_configurations(&self) -> usize {
-        self.inner.bNumConfigurations as usize
+        self.inner.bNumConfigurations as _
     }
 }
 

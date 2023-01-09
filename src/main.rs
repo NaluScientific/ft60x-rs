@@ -4,7 +4,7 @@ fn main() {
     println!("Devices: {:?}", list_device().unwrap());
 
     let device = list_device().unwrap()[0].open().unwrap();
-    println!("{:?}", device.info());
+    println!("{:?}", device.is_usb3().unwrap());
     println!("{:?}", device.device_descriptor());
 
     let data = vec![0xAD, 0x00, 0x00, 0x00];

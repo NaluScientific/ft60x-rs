@@ -9,3 +9,4 @@ build = "build.rs"
 [dependencies]
 thiserror = "1.0.38"
 libc = "0.2.139"
+libloading = "0.7.4"

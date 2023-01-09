@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display};
 
+type Result<T> = std::result::Result<T, D3xxError>;
+
 #[derive(thiserror::Error, Debug, Clone, Copy)]
 pub enum D3xxError {
     InvalidHandle = 1,
