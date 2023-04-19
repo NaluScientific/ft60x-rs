@@ -4,7 +4,7 @@ use std::{ffi::CStr, fmt::Debug};
 
 use libc::*;
 
-use crate::{error::D3xxError, Result};
+use crate::{error::Error, Result};
 
 // Standard Descriptor Types
 pub(crate) const FT_DEVICE_DESCRIPTOR_TYPE: c_ushort = 0x01;
@@ -116,7 +116,10 @@ pub(crate) type FT_STATUS = c_ulong;
 pub(crate) type FT_HANDLE = *mut c_void;
 
 #[cfg(windows)]
-#[link(name = "FTD3XX_x64", kind="static")]
+#[cfg_attr(
+    all(target_os = "windows"),
+    link(name = "FTD3XX.dll"),
+)]
 extern "C" {
     pub(crate) fn FT_ListDevices(
         pArg1: *mut c_void,
@@ -218,7 +221,7 @@ pub(crate) fn c_str_to_string(s: &[c_uchar]) -> Result<String> {
     unsafe {
         Ok(CStr::from_ptr(s.as_ptr() as *const _)
             .to_str()
-            .or(Err(D3xxError::OtherError))?
+            .or(Err(Error::OtherError))?
             .to_string())
     }
 }

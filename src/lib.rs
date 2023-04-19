@@ -6,9 +6,8 @@ use std::{ffi::CString, fmt::Debug, ptr::null_mut, time::Duration};
 use libc::*;
 
 use bindings::*;
-use error::{d3xx_error, D3xxError};
-
-type Result<T> = std::result::Result<T, D3xxError>;
+use error::d3xx_error;
+pub use error::{Error, Result};
 
 // =============================================================================
 
@@ -26,7 +25,7 @@ impl Device {
     /// Open a device using the given serial number.
     pub fn open_with_serial_number(serial_number: &str) -> Result<Device> {
         unsafe {
-            let serial = CString::new(serial_number).or(Err(D3xxError::InvalidParameter))?;
+            let serial = CString::new(serial_number).or(Err(Error::InvalidParameter))?;
             let mut handle: FT_HANDLE = std::ptr::null_mut();
             d3xx_error!(FT_Create(
                 serial.as_ptr() as *mut c_void,
@@ -119,7 +118,7 @@ impl Device {
                 Some(handle) => handle == self.handle,
                 None => false,
             })
-            .ok_or(D3xxError::DeviceNotFound)?;
+            .ok_or(Error::DeviceNotFound)?;
         Ok(i)
     }
 
@@ -144,7 +143,7 @@ impl Device {
     /// until the transfer is complete, or the timeout is reached.
     pub fn write(&self, pipe: Pipe, buf: &[u8]) -> Result<usize> {
         if !pipe.is_write_pipe() {
-            Err(D3xxError::InvalidParameter)?;
+            Err(Error::InvalidParameter)?;
         }
 
         let mut bytes_transferred = 0;
@@ -171,7 +170,7 @@ impl Device {
     /// until the transfer is complete, or the timeout is reached.
     pub fn read(&self, pipe: Pipe, buf: &mut [u8]) -> Result<usize> {
         if !pipe.is_read_pipe() {
-            Err(D3xxError::InvalidParameter)?;
+            Err(Error::InvalidParameter)?;
         }
 
         let mut bytes_transferred = 0;
@@ -198,7 +197,7 @@ impl Device {
     /// If `pipe` is an OUT pipe, an `InvalidParameter` error is returned.
     pub fn flush(&self, pipe: Pipe) -> Result<()> {
         if !pipe.is_read_pipe() {
-            Err(D3xxError::InvalidParameter)?;
+            Err(Error::InvalidParameter)?;
         }
         unsafe { d3xx_error!(FT_FlushPipe(self.handle, pipe as c_uchar)) }
     }

@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Display};
 
-type Result<T> = std::result::Result<T, D3xxError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(thiserror::Error, Debug, Clone, Copy)]
-pub enum D3xxError {
+pub enum Error {
     InvalidHandle = 1,
     DeviceNotFound = 2,
     DeviceNotOpened = 3,
@@ -40,51 +40,51 @@ pub enum D3xxError {
     OtherError = 32,
 }
 
-impl From<u32> for D3xxError {
+impl From<u32> for Error {
     /// Convert from a raw status value to a `D3xxError`.
     ///
     /// # Panics
     /// Panics if the given value is not a valid status value.
     fn from(id: u32) -> Self {
         match id {
-            1 => D3xxError::InvalidHandle,
-            2 => D3xxError::DeviceNotFound,
-            3 => D3xxError::DeviceNotOpened,
-            4 => D3xxError::IoError,
-            5 => D3xxError::InsufficientResources,
-            6 => D3xxError::InvalidParameter,
-            7 => D3xxError::InvalidBaudRate,
-            8 => D3xxError::DeviceNotOpenedForErase,
-            9 => D3xxError::DeviceNotOpenedForWrite,
-            10 => D3xxError::FailedToWriteDevice,
-            11 => D3xxError::EEPROMReadFailed,
-            12 => D3xxError::EEPROMWriteFailed,
-            13 => D3xxError::EEPROMEraseFailed,
-            14 => D3xxError::EEPROMNotPresent,
-            15 => D3xxError::EEPROMNotProgrammed,
-            16 => D3xxError::InvalidArgs,
-            17 => D3xxError::NotSupported,
-            18 => D3xxError::NoMoreItems,
-            19 => D3xxError::Timeout,
-            20 => D3xxError::OperationAborted,
-            21 => D3xxError::ReservedPipe,
-            22 => D3xxError::InvalidControlRequestDirection,
-            23 => D3xxError::InvalidControLRequestType,
-            24 => D3xxError::IoPending,
-            25 => D3xxError::IoIncomplete,
-            26 => D3xxError::HandleEof,
-            27 => D3xxError::Busy,
-            28 => D3xxError::NoSystemResources,
-            29 => D3xxError::DeviceListNotReady,
-            30 => D3xxError::DeviceNotConnected,
-            31 => D3xxError::IncorrectDevicePath,
-            32 => D3xxError::OtherError,
+            1 => Error::InvalidHandle,
+            2 => Error::DeviceNotFound,
+            3 => Error::DeviceNotOpened,
+            4 => Error::IoError,
+            5 => Error::InsufficientResources,
+            6 => Error::InvalidParameter,
+            7 => Error::InvalidBaudRate,
+            8 => Error::DeviceNotOpenedForErase,
+            9 => Error::DeviceNotOpenedForWrite,
+            10 => Error::FailedToWriteDevice,
+            11 => Error::EEPROMReadFailed,
+            12 => Error::EEPROMWriteFailed,
+            13 => Error::EEPROMEraseFailed,
+            14 => Error::EEPROMNotPresent,
+            15 => Error::EEPROMNotProgrammed,
+            16 => Error::InvalidArgs,
+            17 => Error::NotSupported,
+            18 => Error::NoMoreItems,
+            19 => Error::Timeout,
+            20 => Error::OperationAborted,
+            21 => Error::ReservedPipe,
+            22 => Error::InvalidControlRequestDirection,
+            23 => Error::InvalidControLRequestType,
+            24 => Error::IoPending,
+            25 => Error::IoIncomplete,
+            26 => Error::HandleEof,
+            27 => Error::Busy,
+            28 => Error::NoSystemResources,
+            29 => Error::DeviceListNotReady,
+            30 => Error::DeviceNotConnected,
+            31 => Error::IncorrectDevicePath,
+            32 => Error::OtherError,
             _ => panic!("Unknown value {}", id),
         }
     }
 }
 
-impl Display for D3xxError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match *self {
             Self::InvalidHandle => "InvalidHandle",
@@ -129,8 +129,8 @@ impl Display for D3xxError {
 macro_rules! d3xx_error {
     ($status:expr) => {
         match $status {
-            0 => Ok::<(), D3xxError>(()),
-            _ => Err(D3xxError::from($status as u32)),
+            0 => Ok::<(), Error>(()),
+            _ => Err(Error::from($status as u32)),
         }
     };
 }
