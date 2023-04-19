@@ -105,7 +105,7 @@ impl Device {
         unsafe {
             d3xx_error!(FT_GetDriverVersion(self.handle, ptr_mut(&mut version)))?;
         }
-        Ok(Version::new(version as u32))
+        Ok(Version::new(version))
     }
 
     /// Get the index of this device in the current device info list.
@@ -318,7 +318,7 @@ impl DeviceInfo {
 
     /// Attempts to open the device represented by this struct.
     pub fn open(&self) -> Result<Device> {
-        Device::open(&self)
+        Device::open(self)
     }
 
     /// Gets the index of this device in the current D3XX device list.
@@ -567,7 +567,7 @@ impl PipeInfo {
 
     /// Get the pipe.
     pub fn pipe(&self) -> Pipe {
-        Pipe::from(self.inner.PipeID as u8)
+        Pipe::from(self.inner.PipeID)
     }
 
     /// Get the maximum transfer size for this pipe.
@@ -600,7 +600,7 @@ pub struct Version {
 
 impl Version {
     /// Create a new version from a raw version number
-    pub fn new(version: u32) -> Version {
+    pub fn new(version: u32) -> Self {
         Self {
             major: ((version >> 24) & 0xFF) as u8,
             minor: ((version >> 16) & 0xFF) as u8,
@@ -641,7 +641,7 @@ pub fn device_count() -> Result<u32> {
             FT_LIST_NUMBER_ONLY,
         ))?;
     }
-    Ok(n as u32)
+    Ok(n)
 }
 
 /// Get information about all D3XX devices connected to the system.
@@ -670,7 +670,7 @@ pub fn d3xx_version() -> Version {
         d3xx_error!(FT_GetLibraryVersion(ptr_mut(&mut version)))
             .expect("failed to get d3xx library version");
     }
-    Version::new(version as u32)
+    Version::new(version)
 }
 
 /// Check if D3XX drivers are available on this system.
