@@ -1,9 +1,9 @@
 use ft60x_rs::*;
 
 fn main() {
-    println!("Devices: {:?}", list_device().unwrap());
+    println!("Devices: {:?}", list_devices().unwrap());
 
-    let device = list_device().unwrap()[0].open().unwrap();
+    let device = list_devices().unwrap()[0].open().unwrap();
     println!("{:?}", device.is_usb3().unwrap());
     println!("{:?}", device.device_descriptor());
 

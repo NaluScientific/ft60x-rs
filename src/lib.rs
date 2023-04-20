@@ -1,20 +1,38 @@
-pub(crate) mod bindings;
+//! Crate for interfacing with FT600/601 devices through a semi-safe wrapper around the D3XX library.
+//!
+//! The center point of this crate is the [`Device`] struct. This struct
+//! represents a single FT600/601 device. It provides methods for
+//! interacting with the device, such as configuring and reading/writing to
+//! the device.
+//!
+//! # ⚠️ Important ⚠️
+//! To use this crate, the built executable must be able to find the
+//! `FTD3XX.dll` or `libftd3xx.so` library. The file corresponding to the
+//! target platform is expected to exist in the same directory as the executable.
+//! If the library is not found, most functions will return a [`D3xxError::LibraryLoadFailed`]
+//! error.
+
+pub(crate) mod ffi;
+
+// pub(crate) mod bindings_old;
 pub mod error;
 
 use std::{ffi::CString, fmt::Debug, ptr::null_mut, time::Duration};
 
-use libc::*;
+use error::D3xxError;
+use ffi::{constants, ptr_mut, types, lib};
+use libc::{c_uchar, c_ulong, c_ushort, c_void};
 
-use bindings::*;
-use error::{d3xx_error, D3xxError};
-
-type Result<T> = std::result::Result<T, D3xxError>;
-
-// =============================================================================
+type Result<T, E = D3xxError> = std::result::Result<T, E>;
 
 /// A D3XX device.
+///
+/// The [`Device`] struct represents a single D3XX device. It provides methods
+/// for interacting with the device, such as configuring and reading/writing to
+/// the device.
 pub struct Device {
-    handle: FT_HANDLE,
+    /// The raw handle to the D3XX device.
+    handle: types::FT_HANDLE,
 }
 
 impl Device {
@@ -27,32 +45,32 @@ impl Device {
     pub fn open_with_serial_number(serial_number: &str) -> Result<Device> {
         unsafe {
             let serial = CString::new(serial_number).or(Err(D3xxError::InvalidParameter))?;
-            let mut handle: FT_HANDLE = std::ptr::null_mut();
-            d3xx_error!(FT_Create(
+            let mut handle: types::FT_HANDLE = std::ptr::null_mut();
+            lib::FT_Create(
                 serial.as_ptr() as *mut c_void,
-                FT_OPEN_BY_SERIAL_NUMBER,
-                &mut handle as *mut FT_HANDLE,
-            ))?;
+                constants::FT_OPEN_BY_SERIAL_NUMBER,
+                &mut handle as *mut types::FT_HANDLE,
+            )?;
             Ok(Self::from_handle(handle))
         }
     }
 
     /// Create a device wrapper using a raw handle
-    pub unsafe fn from_handle(handle: FT_HANDLE) -> Device {
+    pub unsafe fn from_handle(handle: types::FT_HANDLE) -> Device {
         Self { handle }
     }
 
     /// Get the raw handle to the D3XX device.
-    pub fn raw_handle(&self) -> FT_HANDLE {
+    pub fn raw_handle(&self) -> types::FT_HANDLE {
         self.handle
     }
 
     /// Gets information about the device.
     pub fn info(&self) -> Result<DeviceInfo> {
         let index = self.index()?;
-        let mut device_info = FT_DEVICE_LIST_INFO_NODE::default();
+        let mut device_info = types::FT_DEVICE_LIST_INFO_NODE::default();
         unsafe {
-            d3xx_error!(FT_GetDeviceInfoDetail(
+            lib::FT_GetDeviceInfoDetail(
                 index as u32,
                 ptr_mut(&mut device_info.Flags),
                 ptr_mut(&mut device_info.Type),
@@ -61,7 +79,7 @@ impl Device {
                 ptr_mut(&mut device_info.SerialNumber),
                 ptr_mut(&mut device_info.Description),
                 ptr_mut(&mut device_info.ftHandle),
-            ))?;
+            )?;
         }
         Ok(DeviceInfo::new(index, device_info))
     }
@@ -81,11 +99,7 @@ impl Device {
         let mut vid: c_ushort = 0;
         let mut pid: c_ushort = 0;
         unsafe {
-            d3xx_error!(FT_GetVIDPID(
-                self.handle,
-                ptr_mut(&mut vid),
-                ptr_mut(&mut pid)
-            ))?;
+            lib::FT_GetVIDPID(self.handle, ptr_mut(&mut vid), ptr_mut(&mut pid))?;
         }
         Ok((vid as usize, pid as usize))
     }
@@ -104,14 +118,14 @@ impl Device {
     pub fn driver_version(&self) -> Result<Version> {
         let mut version: c_ulong = 0;
         unsafe {
-            d3xx_error!(FT_GetDriverVersion(self.handle, ptr_mut(&mut version)))?;
+            lib::FT_GetDriverVersion(self.handle, ptr_mut(&mut version))?;
         }
         Ok(Version::new(version as u32))
     }
 
     /// Get the index of this device in the current device info list.
     pub fn index(&self) -> Result<usize> {
-        let devices = list_device()?;
+        let devices = list_devices()?;
         let (i, _) = devices
             .iter()
             .enumerate()
@@ -130,12 +144,7 @@ impl Device {
 
         let mut info = PipeInfo::default();
         unsafe {
-            d3xx_error!(FT_GetPipeInformation(
-                self.handle,
-                0,
-                pipe as c_uchar,
-                ptr_mut(&mut info)
-            ))?;
+            lib::FT_GetPipeInformation(self.handle, 0, pipe as c_uchar, ptr_mut(&mut info))?;
         }
         Ok(info)
     }
@@ -149,14 +158,14 @@ impl Device {
 
         let mut bytes_transferred = 0;
         unsafe {
-            match d3xx_error!(FT_WritePipeEx(
+            match lib::FT_WritePipeEx(
                 self.handle,
                 0x02,
                 buf as *const _ as *const u8,
                 buf.len() as u32,
                 &mut bytes_transferred,
                 std::ptr::null_mut(),
-            )) {
+            ) {
                 Ok(_) => (),
                 Err(e) => {
                     self.abort_transfers(pipe)?;
@@ -176,14 +185,14 @@ impl Device {
 
         let mut bytes_transferred = 0;
         unsafe {
-            match d3xx_error!(FT_ReadPipeEx(
+            match lib::FT_ReadPipeEx(
                 self.handle,
                 pipe as c_uchar,
                 buf as *mut _ as *mut u8,
                 buf.len() as u32,
                 &mut bytes_transferred,
                 std::ptr::null_mut(),
-            )) {
+            ) {
                 Ok(_) => (),
                 Err(e) => {
                     self.abort_transfers(pipe)?;
@@ -200,7 +209,7 @@ impl Device {
         if !pipe.is_read_pipe() {
             Err(D3xxError::InvalidParameter)?;
         }
-        unsafe { d3xx_error!(FT_FlushPipe(self.handle, pipe as c_uchar)) }
+        unsafe { lib::FT_FlushPipe(self.handle, pipe as c_uchar) }
     }
 
     /// Configures a timeout for the specified endpoint. Reading and writing will
@@ -210,11 +219,7 @@ impl Device {
     /// will reset the timeout to the default of 5 seconds.
     pub fn set_timeout(&self, pipe: Pipe, timeout: Duration) -> Result<()> {
         unsafe {
-            d3xx_error!(FT_SetPipeTimeout(
-                self.handle,
-                pipe as c_uchar,
-                timeout.as_millis() as c_ulong
-            ))
+            lib::FT_SetPipeTimeout(self.handle, pipe as c_uchar, timeout.as_millis() as c_ulong)
         }
     }
 
@@ -222,11 +227,7 @@ impl Device {
     pub fn get_timeout(&self, pipe: Pipe) -> Result<Duration> {
         let mut timeout_millis: c_ulong = 0;
         unsafe {
-            d3xx_error!(FT_GetPipeTimeout(
-                self.handle,
-                pipe as c_uchar,
-                ptr_mut(&mut timeout_millis),
-            ))?;
+            lib::FT_GetPipeTimeout(self.handle, pipe as c_uchar, ptr_mut(&mut timeout_millis))?;
         }
         Ok(Duration::from_millis(timeout_millis as u64))
     }
@@ -236,36 +237,33 @@ impl Device {
     pub fn set_stream_size(&self, pipe: Pipe, stream_size: Option<u32>) -> Result<()> {
         unsafe {
             match stream_size {
-                Some(size) => d3xx_error!(FT_SetStreamPipe(
+                Some(size) => lib::FT_SetStreamPipe(
                     self.handle,
                     false as c_uchar,
                     false as c_uchar,
                     pipe as c_uchar,
                     size as c_ulong,
-                )),
-                None => d3xx_error!(FT_ClearStreamPipe(
+                ),
+                None => lib::FT_ClearStreamPipe(
                     self.handle,
                     false as c_uchar,
                     false as c_uchar,
-                    pipe as c_uchar
-                )),
+                    pipe as c_uchar,
+                ),
             }
         }
     }
 
     /// Aborts all pending transfers for the given pipe.
     pub fn abort_transfers(&self, pipe: Pipe) -> Result<()> {
-        unsafe { d3xx_error!(FT_AbortPipe(self.handle, pipe as c_uchar)) }
+        unsafe { lib::FT_AbortPipe(self.handle, pipe as c_uchar) }
     }
 
     /// Get the USB device descriptor.
     pub fn device_descriptor(&self) -> Result<DeviceDescriptor> {
         let mut device_descriptor = DeviceDescriptor::default();
         unsafe {
-            d3xx_error!(FT_GetDeviceDescriptor(
-                self.handle,
-                ptr_mut(&mut device_descriptor.inner)
-            ))?;
+            lib::FT_GetDeviceDescriptor(self.handle, ptr_mut(&mut device_descriptor.inner))?;
         }
         Ok(device_descriptor)
     }
@@ -274,7 +272,7 @@ impl Device {
     /// Consumes the object, meaning the device must be re-opened.
     pub fn power_cycle_port(self) -> Result<()> {
         // TODO: determine if device needs to be reopened.
-        unsafe { d3xx_error!(FT_CycleDevicePort(self.handle)) }
+        unsafe { lib::FT_CycleDevicePort(self.handle) }
     }
 }
 
@@ -285,10 +283,7 @@ impl Drop for Device {
     /// Panics if the device could not be closed.
     fn drop(&mut self) {
         unsafe {
-            match FT_Close(self.handle) {
-                0 => (),
-                _ => panic!("Failed to close device"),
-            }
+            let _ = lib::FT_Close(self.handle);
         }
     }
 }
@@ -307,13 +302,13 @@ impl Debug for Device {
 pub struct DeviceInfo {
     /// Index in the D3XX device list. This value changes when the list is rebuilt!
     index: usize,
-    inner: FT_DEVICE_LIST_INFO_NODE,
+    inner: types::FT_DEVICE_LIST_INFO_NODE,
 }
 
 impl DeviceInfo {
     /// Create a new DeviceInfo object from a raw value. The index is the index in the D3XX
     /// device info list.
-    fn new(index: usize, node: FT_DEVICE_LIST_INFO_NODE) -> DeviceInfo {
+    fn new(index: usize, node: types::FT_DEVICE_LIST_INFO_NODE) -> DeviceInfo {
         DeviceInfo { index, inner: node }
     }
 
@@ -354,18 +349,18 @@ impl DeviceInfo {
 
     /// Device description.
     pub fn description(&self) -> Result<String> {
-        c_str_to_string(&self.inner.Description)
+        types::c_str_to_string(&self.inner.Description)
     }
 
     /// Device serial number.
     pub fn serial_number(&self) -> Result<String> {
-        c_str_to_string(&self.inner.SerialNumber)
+        types::c_str_to_string(&self.inner.SerialNumber)
     }
 
     /// Raw handle to the device.
     /// Returns `None` if the device is not opened, or `Some(handle)` if the device
     /// is currently open.
-    pub fn raw_handle(&self) -> Option<FT_HANDLE> {
+    pub fn raw_handle(&self) -> Option<types::FT_HANDLE> {
         if self.inner.ftHandle as usize == 0 {
             None
         } else {
@@ -384,7 +379,7 @@ impl DeviceInfo {
 /// Holds information regarding a USB device.
 #[derive(Default, Clone)]
 pub struct DeviceDescriptor {
-    inner: FT_DEVICE_DESCRIPTOR,
+    inner: types::FT_DEVICE_DESCRIPTOR,
 }
 
 impl DeviceDescriptor {
@@ -557,7 +552,7 @@ impl From<u8> for PipeType {
 /// Stores information about a pipe.
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub struct PipeInfo {
-    inner: FT_PIPE_INFORMATION,
+    inner: types::FT_PIPE_INFORMATION,
 }
 
 impl PipeInfo {
@@ -636,39 +631,33 @@ impl Version {
 pub fn device_count() -> Result<u32> {
     let mut n: c_ulong = 0;
     unsafe {
-        d3xx_error!(FT_ListDevices(
-            ptr_mut(&mut n),
-            null_mut(),
-            FT_LIST_NUMBER_ONLY,
-        ))?;
+        lib::FT_ListDevices(ptr_mut(&mut n), null_mut(), constants::FT_LIST_NUMBER_ONLY)?;
     }
     Ok(n as u32)
 }
 
 /// Get information about all D3XX devices connected to the system.
-pub fn list_device() -> Result<Vec<DeviceInfo>> {
+pub fn list_devices() -> Result<Vec<DeviceInfo>> {
     const MAX_DEVICES: usize = 32;
     let mut num_devices = 0;
-    unsafe {
-        let mut devices: [FT_DEVICE_LIST_INFO_NODE; MAX_DEVICES] = std::mem::zeroed();
-        d3xx_error!(FT_CreateDeviceInfoList(ptr_mut(&mut num_devices)))?;
-        d3xx_error!(FT_GetDeviceInfoList(
-            ptr_mut(&mut devices),
-            ptr_mut(&mut num_devices),
-        ))?;
-        Ok(devices[..num_devices]
-            .iter()
-            .enumerate()
-            .map(|(i, e)| DeviceInfo::new(i, e.clone()))
-            .collect())
-    }
+    let devices = unsafe {
+        let mut devices: [types::FT_DEVICE_LIST_INFO_NODE; MAX_DEVICES] = std::mem::zeroed();
+        lib::FT_CreateDeviceInfoList(ptr_mut(&mut num_devices))?;
+        lib::FT_GetDeviceInfoList(ptr_mut(&mut devices), ptr_mut(&mut num_devices))?;
+        devices
+    };
+    Ok(devices[..num_devices]
+        .iter()
+        .enumerate()
+        .map(|(i, e)| DeviceInfo::new(i, e.clone()))
+        .collect())
 }
 
 /// Get the D3XX library version.
 pub fn d3xx_version() -> Version {
     let mut version: c_ulong = 0;
     unsafe {
-        d3xx_error!(FT_GetLibraryVersion(ptr_mut(&mut version)))
+        lib::FT_GetLibraryVersion(ptr_mut(&mut version))
             .expect("failed to get d3xx library version");
     }
     Version::new(version as u32)
@@ -678,3 +667,5 @@ pub fn d3xx_version() -> Version {
 pub fn d3xx_available() -> bool {
     device_count().is_ok()
 }
+
+unsafe impl Send for Device {}
