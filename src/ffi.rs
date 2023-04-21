@@ -66,7 +66,7 @@ pub(crate) fn ptr_mut<T, U>(x: &mut T) -> *mut U {
 /// Bindings to D3XX functions.
 ///
 /// Prototypes for these functions are defined in the `FTD3XX.h` header file.
-#[allow(non_snake_case)]
+#[allow(non_snake_case, unused)]
 pub(crate) mod lib {
     use libc::{c_uchar, c_ulong, c_ushort, c_void};
 
@@ -151,6 +151,15 @@ pub(crate) mod lib {
         handle: FT_HANDLE,
         ucPipeId: u8,
         pucBuffer: *const c_uchar,
+        ulBufferLength: c_ulong,
+        pulBytesTransferred: *mut c_ulong,
+        pOverlapped: *mut c_void
+    );
+    wrap_d3xx!(
+        FT_ReadPipe,
+        handle: FT_HANDLE,
+        ucPipeId: u8,
+        pucBuffer: *mut c_uchar,
         ulBufferLength: c_ulong,
         pulBytesTransferred: *mut c_ulong,
         pOverlapped: *mut c_void

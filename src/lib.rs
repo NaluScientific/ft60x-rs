@@ -185,7 +185,7 @@ impl Device {
 
         let mut bytes_transferred = 0;
         unsafe {
-            match lib::FT_ReadPipeEx(
+            match lib::FT_ReadPipe(
                 self.handle,
                 pipe as c_uchar,
                 buf as *mut _ as *mut u8,
