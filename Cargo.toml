@@ -1,5 +1,5 @@
 [package]
-name = "ft60x_rs"
+name = "ft60x"
 version = "0.1.0"
 edition = "2021"
 
