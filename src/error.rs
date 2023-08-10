@@ -1,9 +1,11 @@
 use std::fmt::{Debug, Display};
 
-type Result<T> = std::result::Result<T, D3xxError>;
+use crate::ffi::types::FT_STATUS;
 
+/// Error type corresponding to possible [`FT_STATUS`] errors
 #[derive(thiserror::Error, Debug, Clone, Copy)]
 pub enum D3xxError {
+    // Errors defined by the D3XX library
     InvalidHandle = 1,
     DeviceNotFound = 2,
     DeviceNotOpened = 3,
@@ -38,14 +40,17 @@ pub enum D3xxError {
     IncorrectDevicePath = 31,
 
     OtherError = 32,
+
+    // Errors not defined by the D3XX library
+    LibraryLoadFailed,
 }
 
-impl From<u32> for D3xxError {
+impl From<FT_STATUS> for D3xxError {
     /// Convert from a raw status value to a `D3xxError`.
     ///
     /// # Panics
     /// Panics if the given value is not a valid status value.
-    fn from(id: u32) -> Self {
+    fn from(id: FT_STATUS) -> Self {
         match id {
             1 => D3xxError::InvalidHandle,
             2 => D3xxError::DeviceNotFound,
@@ -119,20 +124,9 @@ impl Display for D3xxError {
             Self::DeviceNotConnected => "DeviceNotConnected",
             Self::IncorrectDevicePath => "IncorrectDevicePath",
             Self::OtherError => "OtherError",
+
+            Self::LibraryLoadFailed => "LibraryLoadFailed",
         };
-        write!(f, "{} ({})", name, *self as u32)
+        write!(f, "{} (error code {})", name, *self as u32)
     }
 }
-
-/// Returns `Ok(())` if the given status is not an error, otherwise
-/// returns a corresponding `D3xxError`.
-macro_rules! d3xx_error {
-    ($status:expr) => {
-        match $status {
-            0 => Ok::<(), D3xxError>(()),
-            _ => Err(D3xxError::from($status as u32)),
-        }
-    };
-}
-
-pub(crate) use d3xx_error;
