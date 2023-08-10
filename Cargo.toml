@@ -1,7 +1,12 @@
 [package]
-name = "ft60x_rs"
+name = "ft60x"
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
+license-file = "LICENSE"
+repository = "https://github.com/NaluScientific/ft60x/"
+authors = ["Mitchell Matsumori-Kelly <mitchell@naluscientific.com>"]
+description = "Library for interfacing with FTDI FT60x USB 3.0 FIFO ICs via bindings to the D3XX library."
 
 [dependencies]
 thiserror = "1.0.38"

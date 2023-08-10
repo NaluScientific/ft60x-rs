@@ -1,3 +1,3 @@
-# ft60x_rs
+# ft60x
 
-Rust bindings for D3XX.
+Unofficial Rust bindings for FTDI's FT60x D3XX library.
