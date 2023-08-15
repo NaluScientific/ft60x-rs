@@ -16,43 +16,20 @@
 //! if used incorrectly. Care should be taken to ensure that the functions are used
 //! according to the [Programmer's Guide](https://ftdichip.com/wp-content/uploads/2020/07/AN_379-D3xx-Programmers-Guide-1.pdf)
 
-use libloading::{Library, Symbol};
-use once_cell::sync::OnceCell;
+use libloading::Symbol;
 
-use crate::error::D3xxError;
+use crate::assets::d3xx_lib;
 use crate::Result;
-
-/// The dynamic library which all D3xx functions will be loaded from.
-///
-/// The library is loaded on the first attempted call to a D3xx function.
-static LIBRARY: OnceCell<Library> = OnceCell::new();
-
-#[cfg(target_os = "windows")]
-const LIBRARY_NAME: &'static str = "ftd3xx.dll";
-
-#[cfg(target_os = "linux")]
-const LIBRARY_NAME: &'static str = "libftd3xx.so";
-
-/// Attempts to load the D3xx dynamic library.
-///
-/// # Errors
-/// Returns [`D3xxError::LibraryLoadFailed`] if the library could not be loaded. This probably means
-/// the library is placed in the wrong spot.
-fn load_library() -> Result<Library> {
-    let library = unsafe { Library::new(LIBRARY_NAME).or(Err(D3xxError::LibraryLoadFailed))? };
-    Ok(library)
-}
 
 /// Helper function for loading a D3xx function by name from the library.
 ///
 /// # Errors
 /// Returns [`D3xxError::LibraryLoadFailed`] if the library could not be loaded.
 fn d3xx_fn<T>(name: &str) -> Result<Symbol<T>> {
-    let library = LIBRARY.get_or_try_init(load_library)?;
+    let library = d3xx_lib()?;
     let function = unsafe {
         library
-            .get::<T>(name.as_bytes())
-            .or(Err(D3xxError::LibraryLoadFailed))?
+            .get::<T>(name.as_bytes())?
     };
     Ok(function)
 }
@@ -69,6 +46,8 @@ pub(crate) fn ptr_mut<T, U>(x: &mut T) -> *mut U {
 #[allow(non_snake_case, unused)]
 pub(crate) mod lib {
     use libc::{c_uchar, c_ulong, c_ushort, c_void};
+    use libloading::{Library, Symbol};
+    use once_cell::sync::OnceCell;
 
     use super::d3xx_fn;
     use super::types::{
@@ -101,7 +80,9 @@ pub(crate) mod lib {
         ($name:ident, $($arg:ident: $ty:ty),*) => {
             pub(crate) unsafe fn $name($($arg: $ty),*) -> Result<()> {
                 type F = unsafe extern "C" fn($($ty),*) -> FT_STATUS;
-                let func = d3xx_fn::<F>(stringify!($name))?;
+                static SYMBOL: OnceCell<Symbol<F>> = OnceCell::new();
+
+                let func = SYMBOL.get_or_try_init(|| d3xx_fn::<F>(stringify!($name)))?;
                 let res = unsafe { func($($arg),*) };
                 if res != 0 {
                     return Err(D3xxError::from(res as u32).into());
