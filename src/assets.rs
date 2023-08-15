@@ -15,8 +15,6 @@ use crate::{D3xxError, Result};
 struct Assets;
 
 /// The dynamic library which all D3xx functions will be loaded from.
-///
-/// The library is loaded on the first attempted call to a D3xx function.
 static LIBRARY: OnceCell<Library> = OnceCell::new();
 
 #[cfg(target_os = "windows")]
@@ -69,6 +67,10 @@ pub fn load_bundled_dylib() -> Result<()> {
     load_dylib(dylib_path)
 }
 
+/// Fetches the dynamic library.
+///
+/// # Errors
+/// - [`D3xxError::LibraryNotLoaded`] if the library has not been loaded.
 pub(crate) fn d3xx_lib() -> Result<&'static Library> {
     LIBRARY.get().ok_or(D3xxError::LibraryNotLoaded)
 }

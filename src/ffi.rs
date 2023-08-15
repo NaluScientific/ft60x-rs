@@ -24,13 +24,10 @@ use crate::Result;
 /// Helper function for loading a D3xx function by name from the library.
 ///
 /// # Errors
-/// Returns [`D3xxError::LibraryLoadFailed`] if the library could not be loaded.
+/// Returns [`D3xxError::LibraryNotLoaded`] if the library could not be loaded.
 fn d3xx_fn<T>(name: &str) -> Result<Symbol<T>> {
     let library = d3xx_lib()?;
-    let function = unsafe {
-        library
-            .get::<T>(name.as_bytes())?
-    };
+    let function = unsafe { library.get::<T>(name.as_bytes())? };
     Ok(function)
 }
 
@@ -68,7 +65,9 @@ pub(crate) mod lib {
     /// ```
     /// unsafe fn FT_ListDevices(pArg1: *mut c_void, pArg2: *mut c_void, flags: c_ulong) -> Result<()> {
     ///     type F = unsafe extern "C" fn(*mut c_void, *mut c_void, c_ulong) -> FT_STATUS;
-    ///     let func = d3xx_fn::<F>(stringify!(FT_ListDevices))?;
+    ///     static SYMBOL: OnceCell<Symbol<F>> = OnceCell::new();
+    ///
+    ///     let func = SYMBOL.get_or_try_init(|| d3xx_fn::<F>(stringify!($name)))?;
     ///     let res = unsafe { func(pArg1, pArg2, flags) };
     ///     if res != 0 {
     ///        return Err(D3xxError::from(res as u32).into());
@@ -85,7 +84,7 @@ pub(crate) mod lib {
                 let func = SYMBOL.get_or_try_init(|| d3xx_fn::<F>(stringify!($name)))?;
                 let res = unsafe { func($($arg),*) };
                 if res != 0 {
-                    return Err(D3xxError::from(res as u32).into());
+                    return Err(D3xxError::from(res as u32));
                 }
                 Ok(())
             }

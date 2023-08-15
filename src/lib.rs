@@ -277,10 +277,6 @@ impl Device {
 }
 
 impl Drop for Device {
-    /// Closes the device.
-    ///
-    /// # Panics
-    /// Panics if the device could not be closed.
     fn drop(&mut self) {
         unsafe {
             let _ = lib::FT_Close(self.handle);
