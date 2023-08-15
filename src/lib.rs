@@ -6,24 +6,24 @@
 //! the device.
 //!
 //! # ⚠️ Important ⚠️
-//! To use this crate, the built executable must be able to find the
-//! `FTD3XX.dll` or `libftd3xx.so` library. The file corresponding to the
-//! target platform is expected to exist in the same directory as the executable.
-//! If the library is not found, most functions will return a [`D3xxError::LibraryLoadFailed`]
-//! error.
+//!
+//! The D3XX library must be loaded before any D3XX functions can be called.
+//! This can be done by calling [`load_dylib`] to load an external library from disk
+//! or [`load_bundled_dylib`] to use the bundled library for the current platform.
 
-pub(crate) mod ffi;
-
-// pub(crate) mod bindings_old;
+pub(crate) mod assets;
 pub mod error;
+pub(crate) mod ffi;
 
 use std::{ffi::CString, fmt::Debug, ptr::null_mut, time::Duration};
 
-use error::D3xxError;
-use ffi::{constants, ptr_mut, types, lib};
+use ffi::{constants, lib, ptr_mut, types};
 use libc::{c_uchar, c_ulong, c_ushort, c_void};
 
-type Result<T, E = D3xxError> = std::result::Result<T, E>;
+pub use error::D3xxError;
+pub use assets::{load_dylib, load_bundled_dylib};
+
+pub type Result<T, E = D3xxError> = std::result::Result<T, E>;
 
 /// A D3XX device.
 ///
@@ -277,10 +277,6 @@ impl Device {
 }
 
 impl Drop for Device {
-    /// Closes the device.
-    ///
-    /// # Panics
-    /// Panics if the device could not be closed.
     fn drop(&mut self) {
         unsafe {
             let _ = lib::FT_Close(self.handle);
