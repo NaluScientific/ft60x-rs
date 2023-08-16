@@ -71,7 +71,7 @@ impl Device {
         let mut device_info = types::FT_DEVICE_LIST_INFO_NODE::default();
         unsafe {
             lib::FT_GetDeviceInfoDetail(
-                index as u32,
+                index as c_ulong,
                 ptr_mut(&mut device_info.Flags),
                 ptr_mut(&mut device_info.Type),
                 ptr_mut(&mut device_info.ID),
@@ -162,7 +162,7 @@ impl Device {
                 self.handle,
                 0x02,
                 buf as *const _ as *const u8,
-                buf.len() as u32,
+                buf.len() as c_ulong,
                 &mut bytes_transferred,
                 std::ptr::null_mut(),
             ) {
@@ -189,7 +189,7 @@ impl Device {
                 self.handle,
                 pipe as c_uchar,
                 buf as *mut _ as *mut u8,
-                buf.len() as u32,
+                buf.len() as c_ulong,
                 &mut bytes_transferred,
                 std::ptr::null_mut(),
             ) {
@@ -320,12 +320,12 @@ impl DeviceInfo {
 
     /// Bit flags for USB3 or USB2 connection, etc.
     pub fn flags(&self) -> u32 {
-        self.inner.Flags
+        self.inner.Flags as _
     }
 
     /// Device type.
     pub fn type_(&self) -> u32 {
-        self.inner.Type
+        self.inner.Type as _
     }
 
     /// Vendor ID.
