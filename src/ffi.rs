@@ -84,7 +84,7 @@ pub(crate) mod lib {
                 let func = SYMBOL.get_or_try_init(|| d3xx_fn::<F>(stringify!($name)))?;
                 let res = unsafe { func($($arg),*) };
                 if res != 0 {
-                    return Err(D3xxError::from(res as u32));
+                    return Err(D3xxError::from(res));
                 }
                 Ok(())
             }
